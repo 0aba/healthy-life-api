@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=75.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "healthy-life-site-api"
+version = "0.0.0.1"
+description = "API that includes user interaction, pharmacy product accounting and health blogs."
+requires-python = ">=3.12"
+
+dependencies = [
+  "Django == 5.1.2",
+  "djangorestframework == 3.15.2",
+  "djoser == 2.3.1",
+  "djangorestframework-simplejwt[crypto] == 5.3.1",
+  "Pillow == 11.0.0",
+  "django-debug-toolbar == 4.4.6",
+  "python-dotenv == 1.0.1",
+  "psycopg[binary,pool] == 3.2.3",
+  "Faker == 30.8.2",
+]
+
+[tool.distutils.egg_info]
+egg_base = "."
