@@ -1,6 +1,7 @@
 from healthy_life_api.settings import AUTH_USER_MODEL
 from django.contrib.auth.models import AbstractUser
 from common.models import IMessage
+from django.utils import timezone
 from django.db import models
 
 
@@ -15,11 +16,8 @@ class User(AbstractUser):
                                    verbose_name='Задний фон')
     about = models.TextField(max_length=512, blank=True, verbose_name='О себе')
 
-    last_seen = models.DateTimeField(auto_now=True)
-    is_online = models.BooleanField(default=False)
-
     def __str__(self):
-        return f'@{self.username}'
+        return f'@\'{self.username}\''
 
 
 class Settings(models.Model):
@@ -27,13 +25,14 @@ class Settings(models.Model):
         verbose_name = 'Настройки'
         verbose_name_plural = 'Настройки'
 
-    user_settings = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='settings')
+    user_settings = models.OneToOneField(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='settings_fk')
     display_subscribed_in_priority = models.BooleanField(default=True,
                                                          verbose_name='Отображать контент подписок в приоритете')
     display_bloggers_in_blacklisted = models.BooleanField(default=False,
                                                           verbose_name='Не отображать контент от тех, кто а ЧС')
     hide_yourself_subscriptions = models.BooleanField(default=False, verbose_name='Скрыть подписки')
-
+    messages_from_friends_only = models.BooleanField(default=False,
+                                                     verbose_name='Получать сообщения только от друзей')
     receive_notifications_about_discounts = models.BooleanField(default=False,
                                                                 verbose_name='Получать уведомления об скидках')
 
@@ -89,9 +88,12 @@ class Awards(models.Model):
         verbose_name_plural = 'Награды'
 
     image = models.ImageField(upload_to='award/%Y/%m/%d/', verbose_name='Изображение награды')
-    description = models.TextField(max_length=512, verbose_name='Описание')
+    description = models.TextField(max_length=512, blank=True, verbose_name='Описание')
 
     objects = models.Manager()
+
+    def __str__(self):
+        return f'@\'{self.pk}\''
 
 
 class AwardsUser(models.Model):
@@ -100,8 +102,8 @@ class AwardsUser(models.Model):
         verbose_name_plural = 'Награды пользователей'
 
     award_user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='award_user_fk',
-                                   verbose_name='Изображение награды')
-    award = models.ForeignKey(Awards, on_delete=models.PROTECT, related_name='award_fk',
+                                   verbose_name='Наградить пользователя')
+    award = models.ForeignKey(Awards, on_delete=models.CASCADE, related_name='award_fk',
                               verbose_name='Награда')
     time_awarded = models.DateTimeField(auto_now_add=True, verbose_name='Время награждения')
 
@@ -119,23 +121,42 @@ class BanCommunication(models.Model):
                                    related_name='got_banned_fk', verbose_name='Забаненный')
     banned_date = models.DateTimeField(auto_now_add=True, verbose_name='Когда забанели')
 
+    # info! null это перманентный
     ban_time = models.DurationField(null=True, verbose_name='Время бана')
 
-    objects = models.Manager()
+    active = models.BooleanField(default=True, verbose_name='Блокировка активна')
+
+    class BanCommunicationManager(models.Manager):
+        def get_queryset(self):
+            now = timezone.now()
+
+            super().get_queryset().filter(
+                active=True,
+                ban_time__isnull=False,
+                banned_date__lt=now - models.F('ban_time')
+            ).update(active=False)
+
+            return super().get_queryset()
+
+    objects = BanCommunicationManager()
 
 
 class Notifications(models.Model):
     class Meta:
+        ordering = ('date_notify',)
         verbose_name = 'Уведомление'
         verbose_name_plural = 'Уведомления'
 
-    user_notify = models.OneToOneField(AUTH_USER_MODEL,
-                                       on_delete=models.CASCADE,
-                                       related_name='user_notify_fk',
-                                       verbose_name='Уведомляемый пользователь')
-    message = models.CharField(max_length=1024, verbose_name='Сообщение')
+    user_notify = models.ForeignKey(AUTH_USER_MODEL,
+                                    on_delete=models.CASCADE,
+                                    related_name='user_notify_fk',
+                                    verbose_name='Уведомляемый пользователь')
+    message = models.CharField(max_length=512, verbose_name='Сообщение')
     date_notify = models.DateTimeField(auto_now_add=True, verbose_name='Время события')
 
-    it_new = models.BooleanField(default=False, verbose_name='Новое')
+    viewed = models.BooleanField(default=False, verbose_name='Просмотрено')
 
     objects = models.Manager()
+
+    def __str__(self):
+        return f'@\'{self.pk}\''

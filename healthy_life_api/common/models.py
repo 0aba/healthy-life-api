@@ -9,17 +9,9 @@ class StatusMessage(models.IntegerChoices):
 
 class IMessage(models.Model):
     class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=~models.Q(id=models.F('reply_id')),
-                name='reply_not_self_CK',
-            ),
-        ]
         abstract = True
-        ordering = ['date_create']
+        ordering = ('date_create',)
 
-    reply = models.ForeignKey('self', on_delete=models.CASCADE, null=True,
-                              related_name='%(app_label)s_%(class)s_reply', verbose_name='Ответ на сообщение')
     wrote = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.PROTECT,
                               related_name='%(app_label)s_%(class)s_wrote', verbose_name='Написал')
     date_create = models.DateTimeField(auto_now_add=True, verbose_name='Время написания')
@@ -35,3 +27,5 @@ class IMessage(models.Model):
     objects = models.Manager()
     displayed = DisplayedManager()
 
+    def __str__(self):
+        return f'@{self.pk}'

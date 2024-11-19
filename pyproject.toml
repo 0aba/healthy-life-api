@@ -3,7 +3,7 @@ requires = ["setuptools>=75.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "healthy-life-site-api"
+name = "healthy-life-api"
 version = "0.0.0.1"
 description = "API that includes user interaction, pharmacy product accounting and health blogs."
 requires-python = ">=3.12"

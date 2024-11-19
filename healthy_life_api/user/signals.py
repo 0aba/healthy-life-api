@@ -1,28 +1,16 @@
 from user.models import User, Settings, Friend, PrivateMessage, AwardsUser, BanCommunication, Notifications
-from django.contrib.auth.signals import user_logged_in, user_logged_out
 from django.db.models.signals import post_save, post_migrate
 from django.contrib.auth.models import Group
 from pharmacy.models import LoyaltyCard
 from django.dispatch import receiver
 
 
-@receiver(user_logged_in)
-def set_user_online(sender, request, user, **kwargs):
-    user.is_online = True
-    user.save()
-
-
-@receiver(user_logged_out)
-def set_user_offline(sender, request, user, **kwargs):
-    user.is_online = False
-    user.save()
-
-
 @receiver(post_migrate)
 def create_base_roles_if_not_exists(sender, **kwargs):
+    # TODO вынести в список?? (потом еще поменять на агл.)
     Group.objects.get_or_create(name='Модератор')
-    Group.objects.get_or_create(name='Курьер')
     Group.objects.get_or_create(name='Фармацевт')
+    # + супер пользователь
 
 
 @receiver(post_save, sender=User)
@@ -36,14 +24,14 @@ def create_user_related_models(sender, instance, created, **kwargs):
 def notify_about_adding_friend(sender, instance, created, **kwargs):
     if created:
         Notifications.objects.create(user_notify=instance.user_friend,
-                                     message=f'Пользователь {instance.user_friend} хочет подружиться')
+                                     message=f'Пользователь {instance.friends_user} хочет подружиться')
 
 
 @receiver(post_save, sender=PrivateMessage)
 def notify_about_pm(sender, instance, created, **kwargs):
     if created:
         Notifications.objects.create(user_notify=instance.received,
-                                     message=f'Вам пришло новое сообщение от {instance.received}')
+                                     message=f'Вам пришло новое сообщение от {instance.wrote}')
 
 
 @receiver(post_save, sender=AwardsUser)

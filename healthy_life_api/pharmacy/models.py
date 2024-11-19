@@ -111,10 +111,10 @@ class LoyaltyCard(models.Model):
         verbose_name_plural = 'Карты лояльности'
 
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_card = models.ForeignKey(AUTH_USER_MODEL,
-                                  on_delete=models.CASCADE,
-                                  related_name='user_card_fk',
-                                  verbose_name='Карта пользователя')
+    user_card = models.OneToOneField(AUTH_USER_MODEL,
+                                     on_delete=models.CASCADE,
+                                     related_name='user_card_fk',
+                                     verbose_name='Карта пользователя')
     card_status = models.PositiveSmallIntegerField(choices=TypeCart.choices, default=TypeCart.ACTIVE,
                                                    verbose_name='Тип товара')
     bonuses = models.PositiveIntegerField(default=0, verbose_name='Количество бонусов')
