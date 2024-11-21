@@ -29,7 +29,7 @@ class Goods(models.Model):
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
 
-    name = models.CharField(max_length=256, verbose_name='Название товара')
+    name = models.CharField(primary_key=True, max_length=1024, verbose_name='Название товара')
     photo = models.ImageField(upload_to='goods/%Y/%m/%d/', default='default/photo_goods.png',
                               verbose_name='Фотография')
     available_delivery = models.BooleanField(default=False, verbose_name='Есть доставка')

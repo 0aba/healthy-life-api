@@ -26,9 +26,9 @@ from django.contrib import admin
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/user/', include('user.urls')),
-    path('api/v1/blog/', include('blog.urls')),
-    path('api/v1/pharmacy/', include('pharmacy.urls')),
+    path('api/v1/user/', include('user.urls_v1')),
+    path('api/v1/blog/', include('blog.urls_v1')),
+    path('api/v1/pharmacy/', include('pharmacy.urls_v1')),
 
     path('api/drf-auth/', include('rest_framework.urls')),
     re_path(r'^auth/', include('djoser.urls')),

@@ -26,8 +26,6 @@ class Settings(models.Model):
         verbose_name_plural = 'Настройки'
 
     user_settings = models.OneToOneField(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='settings_fk')
-    display_subscribed_in_priority = models.BooleanField(default=True,
-                                                         verbose_name='Отображать контент подписок в приоритете')
     display_bloggers_in_blacklisted = models.BooleanField(default=False,
                                                           verbose_name='Не отображать контент от тех, кто а ЧС')
     hide_yourself_subscriptions = models.BooleanField(default=False, verbose_name='Скрыть подписки')

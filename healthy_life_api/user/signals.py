@@ -7,10 +7,9 @@ from django.dispatch import receiver
 
 @receiver(post_migrate)
 def create_base_roles_if_not_exists(sender, **kwargs):
-    # TODO вынести в список?? (потом еще поменять на агл.)
     Group.objects.get_or_create(name='Модератор')
     Group.objects.get_or_create(name='Фармацевт')
-    # + супер пользователь
+    # info! + супер пользователь как роль
 
 
 @receiver(post_save, sender=User)
@@ -23,8 +22,13 @@ def create_user_related_models(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Friend)
 def notify_about_adding_friend(sender, instance, created, **kwargs):
     if created:
-        Notifications.objects.create(user_notify=instance.user_friend,
-                                     message=f'Пользователь {instance.friends_user} хочет подружиться')
+        if Friend.objects.filter(friends_user=instance.user_friend,
+                                 user_friend=instance.friends_user).exists():
+            Notifications.objects.create(user_notify=instance.user_friend,
+                                         message=f'Вы подружились с пользователем {instance.friends_user}')
+        else:
+            Notifications.objects.create(user_notify=instance.user_friend,
+                                         message=f'Пользователь {instance.friends_user} хочет подружиться')
 
 
 @receiver(post_save, sender=PrivateMessage)

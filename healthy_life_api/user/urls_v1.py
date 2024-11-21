@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path
 from user import views
 
 
@@ -16,9 +16,9 @@ urlpatterns = [
                                                         'put': 'update'}), name='award'),
 
 
-    path('award/view/<slug:username>/', views.AwardUserAPIView.as_view({'get': 'list',
+    path('award/view/<slug:username>/', views.AwardUserViewSet.as_view({'get': 'list',
                                                                         'post': 'create'}), name='awards_user'),
-    path('award/view/<slug:username>/<int:pk>/', views.AwardUserAPIView.as_view({'get': 'retrieve', 'delete': 'destroy'}
+    path('award/view/<slug:username>/<int:pk>/', views.AwardUserViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}
                                                                                 ), name='award_user'),
 
     path('bans/', views.BanCommunicationViewSet.as_view({'get': 'list'}), name='bans'),
@@ -26,9 +26,9 @@ urlpatterns = [
     path('ban/<slug:username>/', views.BanCommunicationViewSet.as_view({'post': 'create',
                                                                         'delete': 'destroy'}), name='ban_action'),
 
-    path('notification/view/<slug:username>/', views.NotificationAPIView.as_view({'get': 'list'}),
+    path('notification/view/<slug:username>/', views.NotificationViewSet.as_view({'get': 'list'}),
          name='notifications_user'),
-    path('notification/<int:pk>/', views.NotificationAPIView.as_view({'get': 'retrieve',
+    path('notification/<int:pk>/', views.NotificationViewSet.as_view({'get': 'retrieve',
                                                                       'patch': 'partial_update',
                                                                       'delete': 'destroy'}),
          name='notification'),

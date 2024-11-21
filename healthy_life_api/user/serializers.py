@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import Group
 from django.db import models as dj_models
 from rest_framework import serializers
-from user import validators
+from common import validators
 from user import models
 
 
@@ -24,7 +24,6 @@ class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Settings
         fields = (
-            'display_subscribed_in_priority',
             'display_bloggers_in_blacklisted',
             'hide_yourself_subscriptions',
             'messages_from_friends_only',
@@ -42,14 +41,10 @@ class SettingsUserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         settings_data = validated_data.pop('settings_fk', None)
-
         instance.email = validated_data.get('email', instance.email)
 
         if settings_data is not None:
             settings_instance = instance.settings_fk
-            settings_instance.display_subscribed_in_priority = settings_data.get(
-                'display_subscribed_in_priority', settings_instance.display_subscribed_in_priority
-            )
             settings_instance.display_bloggers_in_blacklisted = settings_data.get(
                 'display_bloggers_in_blacklisted', settings_instance.display_bloggers_in_blacklisted
             )
@@ -77,7 +72,7 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class UserGroupSerializer(serializers.ModelSerializer):
-    group = serializers.ChoiceField(choices=['Модератор', 'Фармацевт'])
+    group = serializers.ChoiceField(choices=('Модератор', 'Фармацевт',))
 
     class Meta:
         model = models.User
@@ -130,7 +125,7 @@ class AwardUserCreateSerializer(serializers.ModelSerializer):
 
 class BanCommunicationSerializer(serializers.ModelSerializer):
     who_banned = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    active = serializers.ReadOnlyField(default=True)
+    active = serializers.BooleanField(default=True, read_only=True)
 
     class Meta:
         model = models.BanCommunication
@@ -166,13 +161,10 @@ class ChatSerializer(serializers.Serializer):
 
 
 class PrivateMessageSerializer(serializers.ModelSerializer):
-    wrote = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    received = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
     class Meta:
         model = models.PrivateMessage
-        fields = ('pk', 'received', 'wrote', 'message', 'date_create', 'date_change', 'status', 'it_read',)
-        read_only_fields = ('pk', 'date_create', 'date_change', 'status', 'it_read',)
+        fields = ('pk', 'received', 'wrote', 'message', 'date_create', 'date_change', 'it_read',)
+        read_only_fields = ('pk', 'received', 'wrote', 'date_create', 'date_change', 'it_read',)
 
     def create(self, validated_data):
         request = self.context.get('request')

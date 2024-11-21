@@ -1,11 +1,11 @@
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from common import models as common_models, permissions
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import generics, viewsets, status
-from user import permissions, serializers, models
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
-from common import models as common_models
 from django.db import models as dj_models
+from user import serializers, models
 
 
 class ProfileAPIView(generics.RetrieveUpdateAPIView):
@@ -190,13 +190,12 @@ class FriendAPIView(generics.ListAPIView,
 
     def create(self, request, *args, **kwargs):
         username = kwargs.get('username', None)
+        me = request.user
 
         try:
             new_friend = models.User.objects.get(username=username)
         except ObjectDoesNotExist:
             return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
-
-        me = request.user
 
         if me == new_friend:
             return Response({'error': 'you can\'t add yourself as a friend'}, status=status.HTTP_400_BAD_REQUEST)
@@ -374,7 +373,7 @@ class AwardViewSet(viewsets.ModelViewSet):
         return Response({'message': f'reward @\'{pk}\' was successfully removed'}, status=status.HTTP_204_NO_CONTENT)
 
 
-class AwardUserAPIView(viewsets.ModelViewSet):
+class AwardUserViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsModeratorOrSuperUser,)
     serializer_class = serializers.AwardUserListSerializer
 
@@ -558,13 +557,13 @@ class ChatListAPIView(generics.ListAPIView):
 
 class PrivateMessageViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
-    queryset = models.PrivateMessage.objects.all()
+    queryset = models.PrivateMessage.displayed.all()
     serializer_class = serializers.PrivateMessageSerializer
 
     http_method_names = ('get', 'post', 'put', 'patch', 'delete',)
 
     def get_queryset(self):
-        return models.PrivateMessage.objects.all()
+        return models.PrivateMessage.displayed.all()
 
     def list(self, request, *args, **kwargs):
         username = kwargs.get('username', None)
@@ -587,13 +586,12 @@ class PrivateMessageViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         username = kwargs.get('username', None)
+        me = request.user
 
         try:
             other_user = models.User.objects.select_related('settings_fk').get(username=username)
         except ObjectDoesNotExist:
             return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
-
-        me = request.user
 
         if models.BlackList.objects.filter(user_black_list=other_user, in_black_list=me).exists():
             return Response({'error': f'you are blacklisted {other_user}'}, status=status.HTTP_403_FORBIDDEN)
@@ -688,7 +686,7 @@ class PrivateMessageViewSet(viewsets.ModelViewSet):
         return Response({'message': f'message {message} was successfully deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
-class NotificationAPIView(viewsets.ModelViewSet):
+class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     queryset = models.Notifications.objects.all()
     serializer_class = serializers.NotifySerializer
