@@ -20,6 +20,18 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ('username', 'date_joined',)
 
 
+class BalanceSerializer(serializers.ModelSerializer):
+    balance = serializers.SerializerMethodField(method_name='get_balance')
+
+    class Meta:
+        model = models.User
+        fields = ('pk', 'balance',)
+        read_only_fields = ('pk', 'balance',)
+
+    def get_balance(self, obj):
+        return f'{obj.balance} USDT'
+
+
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Settings

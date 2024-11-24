@@ -1,3 +1,5 @@
+import decimal
+
 from django.core.management import call_command, execute_from_command_line
 from django.core.management.base import BaseCommand, CommandError
 from healthy_life_api import settings
@@ -29,12 +31,15 @@ class Command(BaseCommand):
 
     @staticmethod
     def _create_test_data():
+        amount_test_user = 3
         usernames = ('user1', 'user2', 'user3',)
+        start_balances = (decimal.Decimal('0.00'), decimal.Decimal('100.00'), decimal.Decimal('1000.00'))
         common_part_of_password = 'qwnmfwkn2en2irnr2kd'
-        for username in usernames:
-            User.objects.create_user(username=username,
-                                     password=f'{common_part_of_password}_{username}',
-                                     email=f'{username}@mail.com')
+        for i in range(amount_test_user):
+            User.objects.create_user(username=usernames[i],
+                                     password=f'{common_part_of_password}_{usernames[i]}',
+                                     email=f'{usernames[i]}@mail.com',
+                                     balance=start_balances[i])
 
         User.objects.create_superuser(username='root',
                                       password=f'{common_part_of_password}_root',

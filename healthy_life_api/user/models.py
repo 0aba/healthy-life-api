@@ -3,10 +3,20 @@ from django.contrib.auth.models import AbstractUser
 from common.models import IMessage
 from django.utils import timezone
 from django.db import models
+import decimal
 
 
 class User(AbstractUser):
+    MINIMUM_REPLENISHMENT_AT_ONE_TIME = decimal.Decimal('5.00')
+    MAXIMUM_REPLENISHMENT_AT_ONE_TIME = decimal.Decimal('100000.00')
+
     class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(balance__gte=0),
+                name='balance_CK',
+            ),
+        ]
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
 
@@ -15,6 +25,7 @@ class User(AbstractUser):
     background = models.ImageField(upload_to='users/backgrounds/%Y/%m/%d/', default='default/background.png',
                                    verbose_name='Задний фон')
     about = models.TextField(max_length=512, blank=True, verbose_name='О себе')
+    balance = models.DecimalField(default=0, decimal_places=2, verbose_name='Бланс')
 
     def __str__(self):
         return f'@\'{self.username}\''

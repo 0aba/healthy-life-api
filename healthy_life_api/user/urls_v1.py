@@ -39,4 +39,9 @@ urlpatterns = [
                                                                    'put': 'update',
                                                                    'patch': 'partial_update',
                                                                    'delete': 'destroy'}), name='message_action'),
+
+    path('balance/', views.CryptoCloudViewAPI({'get': 'get_balance'}), name='balance'),
+    path('balance/topup/', views.CryptoCloudViewAPI({'post': 'top_up_balance'}), name='balance_topup'),
+    path('balance/topup/successful/', views.CryptoCloudViewAPI({'post': 'successful_payment'}
+                                                               ), name='balance_topup_successful'),
 ]

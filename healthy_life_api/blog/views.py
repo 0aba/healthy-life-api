@@ -132,7 +132,7 @@ class BloggerViewSet(viewsets.ModelViewSet):
         str_post = f'{post}'
         post.delete()
 
-        return Response({'message': f'reward successfully deleted {str_post}'}, status=status.HTTP_200_OK)
+        return Response({'message': f'reward successfully deleted {str_post}'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class GoodsPostViewSet(viewsets.ModelViewSet):
@@ -328,8 +328,9 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         except ObjectDoesNotExist:
             return Response({'error': 'blogger not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        queryset = self.get_queryset().filter(dj_models.Q(blogger=blogger) &
-                                              dj_models.Q(subscriber__settings_fk__hide_yourself_subscriptions=False))
+        queryset = (self.get_queryset().select_related('subscriber__settings_fk')
+                    .filter(dj_models.Q(blogger=blogger) &
+                            dj_models.Q(subscriber__settings_fk__hide_yourself_subscriptions=False)))
         serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -372,4 +373,5 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         except ObjectDoesNotExist:
             return Response({'error': f'you are not subscribed to {blogger}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({'message': f'you have successfully unsubscribed from {blogger}'}, status=status.HTTP_200_OK)
+        return Response({'message': f'you have successfully unsubscribed from {blogger}'},
+                        status=status.HTTP_204_NO_CONTENT)

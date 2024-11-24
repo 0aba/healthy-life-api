@@ -1,6 +1,7 @@
 from healthy_life_api.settings import AUTH_USER_MODEL
 from common.models import IMessage
 from django.db import models
+import decimal
 import uuid
 
 
@@ -10,10 +11,10 @@ class TypeGoods(models.IntegerChoices):
     MEDICAL_PRODUCTS = 2, 'Медицинские изделия'
     COSMETICS = 3, 'Косметика'
     HYGIENE = 4, 'Гигиена'
-    SUPPLEMENTS_VITAMINS = 5, 'Добавки/витамины'
+    SUPPLEMENTS_VITAMINS = 5, 'Добавки/Витамины'
 
 
-class TypeCart(models.IntegerChoices):
+class StatusCart(models.IntegerChoices):
     ACTIVE = 0, 'Активирована'
     BLOCKED = 1, 'Заблокирована'
 
@@ -32,20 +33,19 @@ class Goods(models.Model):
     name = models.CharField(primary_key=True, max_length=1024, verbose_name='Название товара')
     photo = models.ImageField(upload_to='goods/%Y/%m/%d/', default='default/photo_goods.png',
                               verbose_name='Фотография')
-    available_delivery = models.BooleanField(default=False, verbose_name='Есть доставка')
-    prescription_only = models.BooleanField(default=False, verbose_name='Только по рецепту')
     type_goods = models.PositiveSmallIntegerField(choices=TypeGoods.choices, default=TypeGoods.OTHER,
                                                   verbose_name='Тип товара')
     goods_info = models.CharField(max_length=2048, verbose_name='Информация о товаре')
-    price = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Цена')
-    amount = models.PositiveSmallIntegerField(default=0, verbose_name='Количество товаров')
+    price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Цена')
+    amount_in_stock = models.PositiveSmallIntegerField(default=0, verbose_name='Количество в наличие')
 
     objects = models.Manager()
 
     def __str__(self):
-        return f'@{self.pk}'
+        return f'@\'{self.name}\''
 
 
+# info! может существать только одна действительная скидка на товар
 class Promotion(models.Model):
     class Meta:
         constraints = [
@@ -67,35 +67,21 @@ class Promotion(models.Model):
 
     objects = models.Manager()
 
+    def __str__(self):
+        return f'{self.pk}'
 
-class GoodsRating(models.Model):
+
+# info! отзыв может существать только один на человека, но его можно изменить и удалить
+class GoodsReview(IMessage):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=(models.Q(grade__gte=0.0) &
-                       models.Q(grade__lte=5.0)),
+                check=(models.Q(grade__gte=0.00) &
+                       models.Q(grade__lte=5.00)),
                 name='grade_CK',
             ),
         ]
-        unique_together = (('rating_goods', 'user_grade'),)
-        verbose_name = 'Оценка товара'
-        verbose_name_plural = 'Оценки товарав'
-
-    rating_goods = models.ForeignKey(Goods,
-                                     on_delete=models.CASCADE,
-                                     related_name='rating_goods_fk',
-                                     verbose_name='Оцениваемый товар')
-    user_grade = models.ForeignKey(AUTH_USER_MODEL,
-                                   on_delete=models.CASCADE,
-                                   related_name='user_grade_fk',
-                                   verbose_name='Оценка пользователя')
-    grade = models.DecimalField(max_digits=3, decimal_places=2, verbose_name='Оценка')
-
-    objects = models.Manager()
-
-
-class GoodsReview(IMessage):
-    class Meta:
+        unique_together = (('goods_review', 'wrote'),)
         verbose_name = 'Отзыв'
         verbose_name_plural = 'Отзывы'
 
@@ -103,9 +89,14 @@ class GoodsReview(IMessage):
                                      on_delete=models.CASCADE,
                                      related_name='goods_review_fk',
                                      verbose_name='Отзыв')
+    grade = models.DecimalField(max_digits=3, decimal_places=2, verbose_name='Оценка')
+
+    status = None  # info! либо существует, либо нет
 
 
 class LoyaltyCard(models.Model):
+    BONUS_IN_CURRENCY = decimal.Decimal('0.01')
+
     class Meta:
         verbose_name = 'Карта лояльности'
         verbose_name_plural = 'Карты лояльности'
@@ -115,38 +106,20 @@ class LoyaltyCard(models.Model):
                                      on_delete=models.CASCADE,
                                      related_name='user_card_fk',
                                      verbose_name='Карта пользователя')
-    card_status = models.PositiveSmallIntegerField(choices=TypeCart.choices, default=TypeCart.ACTIVE,
+    card_status = models.PositiveSmallIntegerField(choices=StatusCart.choices, default=StatusCart.ACTIVE,
                                                    verbose_name='Тип товара')
+    # info! (1 бонус = 0.0000001)
     bonuses = models.PositiveIntegerField(default=0, verbose_name='Количество бонусов')
 
     objects = models.Manager()
 
-
-class ShoppingCart(models.Model):
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=models.Q(amount__gte=1),
-                name='amount_CK',
-            ),
-        ]
-        unique_together = (('goods_cart', 'user_cart'),)
-        verbose_name = 'Товар в карзине'
-        verbose_name_plural = 'Товары в карзинах'
-
-    goods_cart = models.ForeignKey(Goods,
-                                   on_delete=models.CASCADE,
-                                   related_name='goods_cart_fk',
-                                   verbose_name='Товар в корзине')
-    user_cart = models.ForeignKey(AUTH_USER_MODEL,
-                                  on_delete=models.CASCADE,
-                                  related_name='user_cart_fk',
-                                  verbose_name='Корзина пользователя')
-    amount = models.PositiveSmallIntegerField(default=1, verbose_name='Количество в корзине')
-
-    objects = models.Manager()
+    def __str__(self):
+        return f'@\'{uuid}\''
 
 
+# info! препологается, что покупка забирается в аптеке после предоставления purchase_id или на стороне клиента
+#  (приложения, либо сайта реализована, где интегрирована или реализована система доставки)
+# info! пока покупка не совершилась поля date_buy и for_money это None
 class Purchase(models.Model):
     class Meta:
         constraints = [
@@ -154,28 +127,27 @@ class Purchase(models.Model):
                 check=models.Q(for_money__gte=0),
                 name='price_purchase_CK',
             ),
-            models.CheckConstraint(
-                check=models.Q(amount__gte=1),
-                name='amount_purchase_CK',
-            ),
         ]
         verbose_name = 'Покупка'
         verbose_name_plural = 'Покупки'
 
+    uuid = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False, verbose_name='Идентификатор покупки')
     user_buy = models.ForeignKey(AUTH_USER_MODEL,
                                  on_delete=models.CASCADE,
                                  related_name='user_buy_fk',
                                  verbose_name='Покупатель')
-    date_buy = models.DateField(verbose_name='Время покупки')
-    for_money = models.DecimalField(max_digits=10, decimal_places=2,
-                                    verbose_name='Купил за сумму')
-    paid_with_bonuses = models.PositiveSmallIntegerField(verbose_name='Оплачено бонусами')
-    amount = models.PositiveSmallIntegerField(default=1, verbose_name='Количество купленного товара')
-    getting_address = models.CharField(max_length=255, verbose_name='Где забрать товар')  # TODO доставку добавить потом
-    purchase_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False,
-                                   verbose_name='Идентификатор покупки')
+    date_buy = models.DateField(null=True, verbose_name='Время покупки')
+    total_price = models.DecimalField(null=True, max_digits=8, decimal_places=2,
+                                      verbose_name='Купил за сумму')
+    # info! не более половины покупки можно оплатить бонусами
+    paid_with_bonuses = models.PositiveSmallIntegerField(null=True, default=0, verbose_name='Оплачено бонусами')
+    is_paid = models.BooleanField(default=False, verbose_name='Покупка состоялась')
+    goods_is_received = models.BooleanField(default=False, verbose_name='Товар получен')
 
     objects = models.Manager()
+
+    def __str__(self):
+        return f'@\'{self.uuid}\''
 
 
 class PurchaseGoods(models.Model):

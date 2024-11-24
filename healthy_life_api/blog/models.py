@@ -26,7 +26,7 @@ class Post(models.Model):
                                               verbose_name='Статус')
 
     def __str__(self):
-        return f'@\'{self.pk}\''
+        return f'@\'{self.title}\''
 
     class PublishedManager(models.Manager):
         def get_queryset(self):

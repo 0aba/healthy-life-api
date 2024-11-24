@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from django.contrib.auth.models import Group
 from django.db import models as dj_models
 from user import serializers, models
+import requests
+import jwt
+import os
 
 
 class ProfileAPIView(generics.RetrieveUpdateAPIView):
@@ -750,3 +753,84 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notify.delete()
 
         return Response({'error': f'{str_notify} notification successfully removed'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class CryptoCloudViewAPI(viewsets.ViewSet):
+    permission_classes = (IsAuthenticated,)
+
+    def get_balance(self, request, *args, **kwargs):
+        me = request.user
+        serializer = serializers.BalanceSerializer(me)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def top_up_balance(self, request, *args, **kwargs):
+        replenishment_amount = request.data.get('replenishment_amount', None)
+        me = request.user
+
+        if replenishment_amount is None:
+            return Response({'error': 'replenishment amount is missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if replenishment_amount <= 0:
+            return Response({'error': 'replenishment amount is negative'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not (models.User.MINIMUM_REPLENISHMENT_AT_ONE_TIME <=
+                replenishment_amount <= models.User.MAXIMUM_REPLENISHMENT_AT_ONE_TIME):
+            return Response({'error': f'the replenishment amount must be between '
+                                      f'{models.User.MINIMUM_REPLENISHMENT_AT_ONE_TIME} and '
+                                      f'{models.User.MAXIMUM_REPLENISHMENT_AT_ONE_TIME}'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        new_cryptocloud_invoice = self.cryptocloud_create_invoice(me, replenishment_amount)
+
+        return Response(new_cryptocloud_invoice[0], status=new_cryptocloud_invoice[1])
+
+    @staticmethod
+    def cryptocloud_create_invoice(user, replenishment_amount):
+        url = 'https://api.cryptocloud.plus/v2/invoice/create'
+        headers = {
+            'Authorization': f'Token {os.getenv('API_KEY_CRYPTO_CLOUD')}',
+            'Content-Type': 'application/json'
+        }
+        data = {
+            'amount': replenishment_amount,
+            'shop_id': os.getenv('SHOP_ID'),
+            'order_id': f'{user}'
+        }
+
+        response = requests.post(url, headers=headers, json=data)
+        response_json = response.json()
+
+        if response.status_code == 200:
+            return response_json['result']['link'], status.HTTP_201_CREATED
+        return response_json, response.status_code
+
+    def successful_payment(self, request, *args, **kwargs):
+        status_payment = request.data.get('status')
+        invoice_id = request.data.get('invoice_id')
+        amount_crypto = request.data.get('amount_crypto')
+        order_id = request.data.get('order_id')
+        token = request.data.get('token')
+
+        username = order_id.strip('@\'')
+
+        try:
+            user = models.User.objects.get(username=username)
+        except ObjectDoesNotExist:
+            return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
+
+        if status_payment == 'success':
+            try:
+                payload: dict = jwt.decode(token, os.getenv('SECRET_KEY'), algorithms=('HS256',))
+                if payload['id'] == invoice_id:
+                    return Response({'error': 'invoice error'}, status=status.HTTP_400_BAD_REQUEST)
+            except jwt.ExpiredSignatureError:
+                return Response({'error': 'token is expired'}, status=status.HTTP_400_BAD_REQUEST)
+            except jwt.InvalidTokenError:
+                return Response({'error': 'token is invalid'}, status=status.HTTP_400_BAD_REQUEST)
+
+            user.balance += amount_crypto
+            user.save()
+            return Response({'message': 'payment successful'}, status=status.HTTP_201_CREATED)
+
+        return Response({'error': 'payment failed'}, status=status.HTTP_400_BAD_REQUEST)
