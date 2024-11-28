@@ -16,7 +16,7 @@ class Post(models.Model):
         verbose_name = 'Пост'
         verbose_name_plural = 'Посты'
 
-    title = models.CharField(primary_key=True, max_length=1024, verbose_name='Заголовок')
+    title = models.CharField(unique=True, db_index=True, max_length=1024, verbose_name='Заголовок')
     wrote = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.PROTECT,
                               related_name='wrote_fk', verbose_name='Автор')
     text = models.TextField(max_length=32_768, verbose_name='Сообщение')

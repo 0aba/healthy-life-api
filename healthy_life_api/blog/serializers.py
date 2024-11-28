@@ -29,28 +29,23 @@ class PostListSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(
         choices=(
-            models.StatusRecord.DRAFT, 'draft',
-            models.StatusRecord.PUBLISHED, 'published',
-        )
+            models.StatusRecord.DRAFT, 'Черновик',
+            models.StatusRecord.PUBLISHED, 'Опубликовано',
+        ),
+        default=models.StatusRecord.DRAFT
     )
 
     class Meta:
         model = models.Post
         fields = ('title', 'wrote', 'text', 'date_create', 'date_change', 'status',)
-        read_only_fields = ('wrote', 'date_create', 'date_change', 'status',)
-
-    def validate_status(self, value):
-        if self.instance and self.instance.status != value:
-            if value not in (models.StatusRecord.DRAFT, models.StatusRecord.PUBLISHED,):
-                raise serializers.ValidationError('you can only select status DRAFT as 0 or PUBLISHED as 1')
-        return value
+        read_only_fields = ('wrote', 'date_create', 'date_change',)
 
 
 class GoodsPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PostGoods
         fields = ('goods_post', 'post_with_goods',)
-        read_only_fields = ('post_with_goods',)
+        read_only_fields = ('post_with_goods', 'post_with_goods',)
 
 
 class PostCommentSerializer(serializers.ModelSerializer):

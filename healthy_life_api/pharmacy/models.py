@@ -30,8 +30,8 @@ class Goods(models.Model):
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
 
-    name = models.CharField(primary_key=True, max_length=1024, verbose_name='Название товара')
-    photo = models.ImageField(upload_to='goods/%Y/%m/%d/', default='default/photo_goods.png',
+    name = models.CharField(unique=True, db_index=True, max_length=1024, verbose_name='Название товара')
+    photo = models.ImageField(upload_to='goods/%Y/%m/%d/', default='default/goods.png',
                               verbose_name='Фотография')
     type_goods = models.PositiveSmallIntegerField(choices=TypeGoods.choices, default=TypeGoods.OTHER,
                                                   verbose_name='Тип товара')
@@ -114,24 +114,23 @@ class LoyaltyCard(models.Model):
     objects = models.Manager()
 
     def __str__(self):
-        return f'@\'{uuid}\''
+        return f'@\'{self.uuid}\''
 
 
 # info! препологается, что покупка забирается в аптеке после предоставления purchase_id или на стороне клиента
 #  (приложения, либо сайта реализована, где интегрирована или реализована система доставки)
-# info! пока покупка не совершилась поля date_buy и for_money это None
+# info! пока покупка не совершилась поля date_buy и total_price это None
 class Purchase(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(for_money__gte=0),
+                check=models.Q(total_price__gte=0),
                 name='price_purchase_CK',
             ),
         ]
         verbose_name = 'Покупка'
         verbose_name_plural = 'Покупки'
 
-    uuid = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False, verbose_name='Идентификатор покупки')
     user_buy = models.ForeignKey(AUTH_USER_MODEL,
                                  on_delete=models.CASCADE,
                                  related_name='user_buy_fk',
@@ -147,7 +146,7 @@ class Purchase(models.Model):
     objects = models.Manager()
 
     def __str__(self):
-        return f'@\'{self.uuid}\''
+        return f'@\'{self.pk}\''
 
 
 class PurchaseGoods(models.Model):

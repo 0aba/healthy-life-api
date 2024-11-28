@@ -49,4 +49,6 @@ def notify_about_new_award(sender, instance, created, **kwargs):
 def notify_about_ban(sender, instance, created, **kwargs):
     if created:
         Notifications.objects.create(user_notify=instance.got_banned,
-                                     message=f'Вас заблокировали на {instance.ban_time}')
+                                     message=f'Вас заблокировали на {instance.ban_time
+                                                                     if instance.ban_time
+                                                                     else 'навсегда'}')

@@ -20,7 +20,7 @@ class PostListAPIView(generics.ListAPIView):
         me = request.user
         queryset = self.get_queryset()
 
-        if not me.settings_fk.display_bloggers_in_blacklisted:
+        if me.is_authenticated and not me.settings_fk.display_bloggers_in_blacklisted:
             blacklist_ids = user_models.BlackList.objects.filter(user_black_list=me).values('in_black_list')
             queryset = queryset.filter(~dj_models.Q(wrote__in=blacklist_ids))
 
@@ -48,9 +48,9 @@ class BloggerViewSet(viewsets.ModelViewSet):
 
         return (IsAuthenticated(),)
 
-    def get_queryset(self):
-        me_username = self.request.user.username
-        blogger_username = self.kwargs.get('username')
+    @staticmethod
+    def get_queryset_blogger(request, blogger_username=None):
+        me_username = request.user.username
 
         if me_username == blogger_username:
             return models.Post.blogger.all()
@@ -63,40 +63,49 @@ class BloggerViewSet(viewsets.ModelViewSet):
         try:
             blogger = user_models.User.objects.get(username=blogger_username)
         except ObjectDoesNotExist:
-            return Response({'error': 'blogger not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found blogger'}, status=status.HTTP_404_NOT_FOUND)
 
-        queryset = self.get_queryset().filter(wrote=blogger)
+        queryset = self.get_queryset_blogger(request, blogger_username).filter(wrote=blogger)
         serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, *args, **kwargs):
         title_post = kwargs.get('title', None)
+        me = request.user
 
         try:
             post = self.get_queryset().get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
+
+        if me != post.wrote:
+            return Response({'error': 'You cannot view someone else\'s blog that is in draft'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(post)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        serializer = serializers.PostSerializer(data=request.data)
         me = request.user
 
-        title = serializer.validated_data.get('title')
-        if models.Post.objects.filter(title=title).exists():
-            return Response({'error': 'post with this title already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            serializer.validated_data['wrote'] = me
+            post_status = serializer.validated_data['status']
 
-        if user_models.BanCommunication.objects.filter(got_banned=me, active=True).exists():
-            return Response({'error': 'you can\'t create post if you are blocked'}, status=status.HTTP_403_FORBIDDEN)
+            if user_models.BanCommunication.objects.filter(got_banned=me, active=True).exists():
+                return Response({'error': 'you can\'t create post if you are blocked'},
+                                status=status.HTTP_403_FORBIDDEN)
 
-        new_post = serializer.save()
+            new_post = serializer.save()
 
-        return Response({'message': f'post successfully created {new_post} as draft'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'post successfully created {new_post} as '
+                                        f'{models.StatusRecord(post_status).label}'},
+                            status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         title_post = kwargs.get('title', None)
@@ -105,17 +114,18 @@ class BloggerViewSet(viewsets.ModelViewSet):
         try:
             post = self.get_queryset().get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
 
         if me != post.wrote:
             return Response({'error': 'you can\'t edit someone else\'s post'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(post, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
 
-        updated_award = serializer.save()
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': f'reward successfully edit {post}'}, status=status.HTTP_200_OK)
 
-        return Response({'message': f'reward successfully edit {updated_award}'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         title_post = kwargs.get('title', None)
@@ -124,7 +134,7 @@ class BloggerViewSet(viewsets.ModelViewSet):
         try:
             post = self.get_queryset().get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
 
         if me != post.wrote and not me.is_superuser:
             return Response({'error': 'you can\'t delete someone else\'s post'}, status=status.HTTP_403_FORBIDDEN)
@@ -143,11 +153,16 @@ class GoodsPostViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         title_post = kwargs.get('title', None)
+        me = request.user
 
         try:
-            post = self.get_queryset().get(title=title_post)
+            post = models.Post.blogger.get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
+
+        if post.status == models.StatusRecord.DRAFT and me != post.wrote:
+            return Response({'error': 'you can\'t see the product list of someone else\'s post in draft'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         goods_post = self.get_queryset().filter(post_with_goods=post)
         serializer = self.get_serializer(goods_post, many=True)
@@ -156,22 +171,22 @@ class GoodsPostViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         title_post = kwargs.get('title', None)
-        name_goods = request.data.get('goods_post', None)
+        name_goods = kwargs.get('goods', None)
         me = request.user
 
         try:
             post = models.Post.objects.get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             add_goods = models.Goods.objects.get(name=name_goods)
         except ObjectDoesNotExist:
-            return Response({'error': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'not found goods'}, status=status.HTTP_404_NOT_FOUND)
 
         if me != post.wrote:
             return Response({'error': 'you can\'t add a goods to someone else\'s post'},
-                            status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_403_FORBIDDEN)
 
         try:
             self.get_queryset().create(goods_post=add_goods, post_with_goods=post)
@@ -197,7 +212,7 @@ class GoodsPostViewSet(viewsets.ModelViewSet):
 
         if me != post.wrote:
             return Response({'error': 'you can\'t delete a goods to someone else\'s post'},
-                            status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_403_FORBIDDEN)
 
         try:
             models.PostGoods.objects.get(goods_post=delete_goods, post_with_goods=post).delete()
@@ -216,11 +231,16 @@ class PostCommentViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         title_post = kwargs.get('title', None)
+        me = request.user
 
         try:
-            post = models.Post.objects.get(title=title_post)
+            post = models.Post.blogger.get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
+
+        if post.status == models.StatusRecord.DRAFT and me != post.wrote:
+            return Response({'error': 'you can\'t see comments of someone else\'s post in draft'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         queryset = self.get_queryset().filter(comment_in_post=post)
         serializer = self.get_serializer(queryset, many=True)
@@ -233,7 +253,7 @@ class PostCommentViewSet(viewsets.ModelViewSet):
         try:
             comment = models.PostComment.displayed.get(pk=pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'comment not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found comment'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(comment)
 
@@ -244,11 +264,11 @@ class PostCommentViewSet(viewsets.ModelViewSet):
         me = request.user
 
         try:
-            post = models.Post.objects.get(title=title_post)
+            post = models.Post.published.get(title=title_post)
         except ObjectDoesNotExist:
-            return Response({'error': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found post'}, status=status.HTTP_404_NOT_FOUND)
 
-        who_create = user_models.User.objects.get(username=post.wrote)
+        who_create = post.wrote
 
         if user_models.BlackList.objects.filter(user_black_list=who_create, in_black_list=me).exists():
             return Response({'error': f'you are blacklisted {who_create}'}, status=status.HTTP_403_FORBIDDEN)
@@ -257,11 +277,14 @@ class PostCommentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'you can\'t send a comment if you are blocked'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        serializer.save()
+        if serializer.is_valid():
+            serializer.validated_data['comment_in_post'] = post
+            serializer.save()
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
@@ -277,10 +300,12 @@ class PostCommentViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(comment, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
@@ -292,7 +317,7 @@ class PostCommentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'message not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if comment.wrote != me:
-            return Response({'error': 'only the person who wrote the comment can change it'},
+            return Response({'error': 'only the person who wrote the comment can delete it'},
                             status=status.HTTP_403_FORBIDDEN)
 
         comment.status = common_models.StatusMessage.DELETED
@@ -303,6 +328,7 @@ class PostCommentViewSet(viewsets.ModelViewSet):
 
 class MySubscriptionsAPIView(generics.ListAPIView):
     queryset = models.SubscriberBlogUser.objects.all()
+    permission_classes = (IsAuthenticated,)
     serializer_class = serializers.SubscriptionSerializer
 
     def list(self, request, *args, **kwargs):
@@ -326,7 +352,7 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         try:
             blogger = user_models.User.objects.get(username=username_blogger)
         except ObjectDoesNotExist:
-            return Response({'error': 'blogger not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'not found blogger'}, status=status.HTTP_404_NOT_FOUND)
 
         queryset = (self.get_queryset().select_related('subscriber__settings_fk')
                     .filter(dj_models.Q(blogger=blogger) &
@@ -347,11 +373,10 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         if me == blogger:
             return Response({'error': 'you can\'t subscribe to yourself'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if models.SubscriberBlogUser.objects.filter(blogger=blogger, subscriber=me).exists():
-            return Response({'message': f'you are already subscribed to {blogger}'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        models.SubscriberBlogUser.objects.create(blogger=blogger, subscriber=me)
+        try:
+            models.SubscriberBlogUser.objects.create(blogger=blogger, subscriber=me)
+        except IntegrityError:
+            return Response({'message': f'you are already subscribed to {blogger}'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'message': f'you have successfully subscribed to {blogger}'},
                         status=status.HTTP_201_CREATED)
