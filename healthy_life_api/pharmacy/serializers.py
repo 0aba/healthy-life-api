@@ -49,12 +49,12 @@ class GoodsSerializer(serializers.ModelSerializer):
                                    required=False)
     type_goods = serializers.ChoiceField(
         choices=(
-            models.TypeGoods.OTHER, 'Другое',
-            models.TypeGoods.MEDICINE, 'Лекарство',
-            models.TypeGoods.MEDICAL_PRODUCTS, 'Медицинские изделия',
-            models.TypeGoods.COSMETICS, 'Косметика',
-            models.TypeGoods.HYGIENE, 'Гигиена',
-            models.TypeGoods.SUPPLEMENTS_VITAMINS, 'Добавки/Витамины',
+            models.TypeGoods.OTHER,
+            models.TypeGoods.MEDICINE,
+            models.TypeGoods.MEDICAL_PRODUCTS,
+            models.TypeGoods.COSMETICS,
+            models.TypeGoods.HYGIENE,
+            models.TypeGoods.SUPPLEMENTS_VITAMINS,
         ),
         default=models.TypeGoods.OTHER
     )

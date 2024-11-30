@@ -9,6 +9,7 @@ from django.db import models as dj_model
 from user import models as user_models
 from django.utils import timezone
 from common import permissions
+from common.utils import Role
 import decimal
 
 
@@ -45,7 +46,7 @@ class GoodsViewSet(viewsets.ModelViewSet):
         try:
             goods = self.get_queryset().get(name=name_goods)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found goods'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(goods)
 
@@ -58,11 +59,11 @@ class GoodsViewSet(viewsets.ModelViewSet):
             price = serializer.validated_data.get('price')
 
             if price < 0:
-                return Response({'detail': 'price is negative'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'price': ['price is negative']}, status=status.HTTP_400_BAD_REQUEST)
 
             new_goods = serializer.save()
 
-            return Response({'message': f'goods successfully created {new_goods}'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'goods {new_goods} successfully created'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -72,7 +73,7 @@ class GoodsViewSet(viewsets.ModelViewSet):
         try:
             goods = self.get_queryset().get(name=name_goods)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found goods'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(goods, data=request.data, partial=True)
 
@@ -84,7 +85,7 @@ class GoodsViewSet(viewsets.ModelViewSet):
 
             updated_goods = serializer.save()
 
-            return Response({'message': f'goods successfully edit {updated_goods}'}, status=status.HTTP_200_OK)
+            return Response({'message': f'goods {updated_goods} successfully edit '}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -94,12 +95,12 @@ class GoodsViewSet(viewsets.ModelViewSet):
         try:
             goods = self.get_queryset().get(name=name_goods)
         except ObjectDoesNotExist:
-            return Response({'error': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         str_goods = f'{goods}'
         goods.delete()
 
-        return Response({'message': f'goods successfully deleted {str_goods}'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': f'goods {str_goods} successfully deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class PromotionViewSet(viewsets.ModelViewSet):
@@ -128,7 +129,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
         try:
             promotion = self.get_queryset().get(pk=pk_promotion)
         except ObjectDoesNotExist:
-            return Response({'error': 'promotion not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'promotion not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(promotion)
 
@@ -142,11 +143,11 @@ class PromotionViewSet(viewsets.ModelViewSet):
 
             if self.get_queryset().filter(promotion_goods=promotion_goods,
                                           time_end_promotion__gt=timezone.now()).exists():
-                return Response({'error': 'promotion goods already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'promotion goods already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
-            new_goods = serializer.save()
+            new_promotion = serializer.save()
 
-            return Response({'message': f'promotion successfully created {new_goods}'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'promotion {new_promotion} successfully created'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -156,7 +157,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
         try:
             promotion = self.get_queryset().get(pk=pk_promotion)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found promotion'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'promotion not found '}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(promotion, data=request.data, partial=True)
 
@@ -164,11 +165,11 @@ class PromotionViewSet(viewsets.ModelViewSet):
             if self.get_queryset().filter(~dj_model.Q(pk=promotion.pk),
                                           promotion_goods=promotion.promotion_goods,
                                           time_end_promotion__gt=timezone.now()).exists():
-                return Response({'error': 'promotion goods already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'promotion goods already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
             updated_goods = serializer.save()
 
-            return Response({'message': f'promotion successfully edit {updated_goods}'}, status=status.HTTP_200_OK)
+            return Response({'message': f'promotion {updated_goods} successfully edit'}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -178,12 +179,12 @@ class PromotionViewSet(viewsets.ModelViewSet):
         try:
             promotion = self.get_queryset().get(pk=pk_promotion)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found promotion'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'promotion not found'}, status=status.HTTP_404_NOT_FOUND)
 
         str_promotion = f'{promotion}'
         promotion.delete()
 
-        return Response({'message': f'promotion successfully deleted {str_promotion}'},
+        return Response({'message': f'promotion {str_promotion} successfully deleted'},
                         status=status.HTTP_204_NO_CONTENT)
 
 
@@ -206,7 +207,7 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
         try:
             goods = models.Goods.objects.get(name=name_goods)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found goods'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         queryset = self.get_queryset().filter(goods_review=goods)
         serializer = self.get_serializer(queryset, many=True)
@@ -219,7 +220,7 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
         try:
             review = self.get_queryset().get(pk=pk_review)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found review'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'review not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(review)
 
@@ -232,7 +233,7 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
         try:
             goods = models.Goods.objects.get(name=name_goods)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found goods'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(data=request.data)
 
@@ -240,9 +241,9 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
             try:
                 new_review = serializer.save(goods_review=goods, wrote=me)
             except IntegrityError:
-                return Response({'error': 'review already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'review already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({'message': f'review successfully created {new_review}'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'review {new_review} successfully created'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -253,16 +254,16 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
         try:
             review = self.get_queryset().get(pk=pk_review)
         except ObjectDoesNotExist:
-            return Response({'error': 'review not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'review not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if review.wrote != me:
-            return Response({'error': 'you can\'t change someone else\'s review'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'you can\'t change someone else\'s review'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(review, data=request.data, partial=True)
 
         if serializer.is_valid():
             updated_review = serializer.save()
-            return Response({'message': f'review successfully edit {updated_review}'}, status=status.HTTP_200_OK)
+            return Response({'message': f'review {updated_review} successfully edit'}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -273,15 +274,15 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
         try:
             review = self.get_queryset().get(pk=pk_review)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found review'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'review not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if review.wrote != me:
-            return Response({'error': 'you can\'t delete someone else\'s review'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'you can\'t delete someone else\'s review'}, status=status.HTTP_400_BAD_REQUEST)
 
         str_review = f'{review}'
         review.delete()
 
-        return Response({'message': f'review successfully deleted {str_review}'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': f'review {str_review} successfully deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class LoyaltyCardViewSet(viewsets.ModelViewSet):
@@ -300,10 +301,10 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
             owner_card = user_models.User.objects.get(username=username_owner_card)
             card_user = self.get_queryset().get(user_card=owner_card)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if me != card_user.user_card and not me.is_superuser:
-            return Response({'error': 'you can\'t see someone else\'s loyalty card'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'you can\'t see someone else\'s loyalty card'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(card_user)
 
@@ -316,7 +317,7 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
             owner_card = user_models.User.objects.get(username=username_owner_card)
             card_user = self.get_queryset().get(user_card=owner_card)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(card_user, data=request.data, partial=True)
 
@@ -335,7 +336,7 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
             owner_card = user_models.User.objects.get(username=username_owner_card)
             card_user = self.get_queryset().get(user_card=owner_card)
         except ObjectDoesNotExist:
-            return Response({'error': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
 
         card_user.card_status = models.StatusCart.BLOCKED
         card_user.save()
@@ -349,7 +350,7 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
             owner_card = user_models.User.objects.get(username=username_owner_card)
             card_user = self.get_queryset().get(user_card=owner_card)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
 
         card_user.card_status = models.StatusCart.ACTIVE
         card_user.save()
@@ -370,7 +371,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         try:
             purchase_user = user_models.User.objects.get(username=purchase_user_username)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found user'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
 
         queryset = self.get_queryset().filter(user_buy=purchase_user)
         serializer = self.get_serializer(queryset, many=True)
@@ -383,7 +384,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         try:
             purchase = self.get_queryset().get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found purchase'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(purchase)
 
@@ -406,14 +407,14 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         try:
             purchase = self.get_queryset().get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if me != purchase.user_buy:
-            return Response({'error': 'you can\'t delete someone else\'s purchase'},
+            return Response({'detail': 'you can\'t delete someone else\'s purchase'},
                             status=status.HTTP_403_FORBIDDEN)
 
         if purchase.is_paid:
-            return Response({'error': 'You cannot delete completed purchases'},
+            return Response({'detail': 'You cannot delete completed purchases'},
                             status=status.HTTP_400_BAD_REQUEST)
 
         str_purchase = f'{purchase}'
@@ -428,14 +429,14 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         try:
             purchase = self.get_queryset().get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found purchase'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if me != purchase.user_buy:
-            return Response({'error': 'you can\'t pay for someone else\'s purchase'},
+            return Response({'detail': 'you can\'t pay for someone else\'s purchase'},
                             status=status.HTTP_403_FORBIDDEN)
 
         if purchase.is_paid:
-            return Response({'error': 'the purchase has already been paid for'},
+            return Response({'detail': 'the purchase has already been paid for'},
                             status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()
@@ -461,20 +462,21 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         paid_with_bonuses = request.data.get('paid_with_bonuses', 0)
 
         if models.LoyaltyCard.objects.get(user_card=me).bonuses < paid_with_bonuses:
-            return Response({'ошибка': 'у вас нет столько бонусов'})
+            return Response({'detail': 'you don\'t have that many bonuses on your loyalty card'})
 
         if paid_with_bonuses < 0:
-            return Response({'error': 'bonuses is negative number'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'paid_with_bonuses': ['paid_with_bonuses is negative number']},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         # info только 25% покупки можно оплатить бонусами
         if current_total_price * decimal.Decimal('0.25') < paid_with_bonuses * models.LoyaltyCard.BONUS_IN_CURRENCY:
-            return Response({'ошибка': 'только 25% покупки можно оплатить бонусами'},
+            return Response({'detail': 'no more than 25% of the purchase can be paid with bonuses'},
                             status=status.HTTP_400_BAD_REQUEST)
 
         balance = me.balance
 
         if balance < current_total_price - paid_with_bonuses * models.LoyaltyCard.BONUS_IN_CURRENCY:
-            return Response({'ошибка': 'недостаточно средств'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'insufficient funds to purchase'}, status=status.HTTP_400_BAD_REQUEST)
 
         not_available = (models.PurchaseGoods.objects
                          .filter(purchase=purchase,
@@ -482,18 +484,18 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                                  ).values_list('pk', flat=True))
 
         if len(not_available):
-            return Response({'ошибка': f'нет в наличии в таком объеме следующих товаров в покупке: {list(not_available)}'})
+            return Response({'detail': f'the following items are not available in such quantities in the purchase: '
+                                       f'{list(not_available)}'})
 
         try:
-            purchase_goods = (models.PurchaseGoods.objects.filter(purchase=purchase)
-                              .prefetch_related('goods_purchase'))
+            purchase_goods = models.PurchaseGoods.objects.filter(purchase=purchase).prefetch_related('goods_purchase')
 
             with transaction.atomic():
                 for pg in purchase_goods:
                     pg.goods_purchase.amount_in_stock -= pg.amount
                     pg.goods_purchase.save()
         except DatabaseError:
-            return Response({'ошибка': 'ошибка при резервации товара для покупки'},
+            return Response({'detail': 'error when reserving product for purchase'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         me.balance -= current_total_price - paid_with_bonuses * models.LoyaltyCard.BONUS_IN_CURRENCY
@@ -516,16 +518,16 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         try:
             purchase = self.get_queryset().get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found purchase'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if not me.groups.filter(name='Фармацевт').exists() and not me.is_superuser:
-            return Response({'error': 'only pharmacy staff can mark the purchase as delivered'},)
+        if not me.groups.filter(name=Role.PHARMACIST.value).exists() and not me.is_superuser:
+            return Response({'detail': 'only pharmacy staff can mark the purchase as delivered'},)
 
         if not purchase.is_paid:
-            return Response({'error': 'cannot mark an unpaid purchase as delivered'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'cannot mark an unpaid purchase as delivered'}, status=status.HTTP_403_FORBIDDEN)
 
         if purchase.goods_is_received:
-            return Response({'error': 'the goods have already been delivered'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'the goods have already been delivered'}, status=status.HTTP_400_BAD_REQUEST)
 
         purchase.goods_is_received = True
         purchase.save()
@@ -546,7 +548,7 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
         try:
             purchase = models.Purchase.objects.get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found purchase'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found '}, status=status.HTTP_404_NOT_FOUND)
 
         queryset = self.get_queryset().filter(purchase=purchase)
         serializer = self.get_serializer(queryset, many=True)
@@ -561,12 +563,12 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
         try:
             purchase = models.Purchase.objects.get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             goods = models.Goods.objects.get(name=goods_name)
         except ObjectDoesNotExist:
-            return Response({'error': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(data=request.data)
 
@@ -575,19 +577,19 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
             amount_in_stock = serializer.validated_data.get('amount')
 
             if purchase.is_paid:
-                return Response({'error': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'a paid purchase can\'t be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
 
             if purchase.user_buy != me:
-                return Response({'error': 'You cannot change the quantity of an item in someone else\'s purchase.'},
+                return Response({'detail': 'You can\'t change the quantity of an item in someone else\'s purchase'},
                                 status=status.HTTP_403_FORBIDDEN)
 
             if goods.amount_in_stock < amount_in_stock:
-                return Response({'error': 'there is not enough product in stock'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'there is not enough goods in stock'}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 new_purchase_goods = serializer.save(purchase=purchase, goods_purchase=goods)
             except IntegrityError:
-                return Response({'error': 'purchase already has goods'},  status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'purchase already has goods'},  status=status.HTTP_400_BAD_REQUEST)
 
             return Response({'message': f'goods {new_purchase_goods.goods_purchase} '
                                         f'successfully add in purchase {purchase}'},
@@ -603,26 +605,26 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
         try:
             purchase = models.Purchase.objects.get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             goods = models.Goods.objects.get(name=goods_name)
         except ObjectDoesNotExist:
-            return Response({'error': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if purchase.is_paid:
-            return Response({'error': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
 
         if purchase.user_buy != me:
-            return Response({'error': 'You cannot change the quantity of an item in someone else\'s purchase.'},
+            return Response({'detail': 'You cannot change the quantity of an item in someone else\'s purchase.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         new_amount = request.data.get('amount')
         if new_amount <= 0:
-            return Response({'error': 'select at least one goods'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'new_amount': ['select at least one goods']}, status=status.HTTP_400_BAD_REQUEST)
 
         if goods.amount_in_stock < new_amount:
-            return Response({'error': 'there is not enough product in stock'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'there is not enough goods in stock'}, status=status.HTTP_400_BAD_REQUEST)
 
         self.get_queryset().filter(purchase=purchase, goods_purchase=goods).update(amount=new_amount)
 
@@ -637,23 +639,23 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
         try:
             purchase = models.Purchase.objects.get(pk=purchase_pk)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found purchase'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             goods = models.Goods.objects.get(name=goods_name)
         except ObjectDoesNotExist:
-            return Response({'error': 'not found goods'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if purchase.is_paid:
-            return Response({'error': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
 
         if purchase.user_buy != me:
-            return Response({'error': 'You cannot change the quantity of an item in someone else\'s purchase.'},
+            return Response({'detail': 'You cannot change the quantity of an item in someone else\'s purchase'},
                             status=status.HTTP_403_FORBIDDEN)
 
         try:
             self.get_queryset().get(purchase=purchase, goods_purchase=goods).delete()
         except ObjectDoesNotExist:
-            return Response({'error': 'goods in purchase not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'goods in purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({'message': f'successfully delete goods in {purchase}'}, status=status.HTTP_200_OK)

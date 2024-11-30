@@ -11,4 +11,4 @@ def notify_about_promotion(sender, instance, created, **kwargs):
 
         for user in users_to_notify:
             Notifications.objects.create(user_notify=user,
-                                         message=f'Появилась новая скидка на товар {instance.promotion_goods}')
+                                         message=f'there is a new discount on the product {instance.promotion_goods}')

@@ -3,10 +3,10 @@ from pharmacy import models
 
 
 class GoodsListFilter(filters.FilterSet):
-    name = filters.CharFilter(lookup_expr='icontains')
-    type_goods = filters.ChoiceFilter(choices=models.TypeGoods.choices)
-    price = filters.RangeFilter()
-    in_stock = filters.BooleanFilter(method='filter_in_stock')
+    name = filters.CharFilter(lookup_expr='icontains', label='name')
+    type_goods = filters.ChoiceFilter(choices=models.TypeGoods.choices, label='type')
+    price = filters.RangeFilter(label='price')
+    in_stock = filters.BooleanFilter(method='filter_in_stock', label='in stock')
 
     class Meta:
         model = models.Goods

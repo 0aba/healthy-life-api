@@ -2,6 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import Group
 from django.db import models as dj_models
 from rest_framework import serializers
+from common.utils import Role
 from common import validators
 from user import models
 
@@ -84,7 +85,7 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class UserGroupSerializer(serializers.ModelSerializer):
-    group = serializers.ChoiceField(choices=('Модератор', 'Фармацевт',))
+    group = serializers.ChoiceField(choices=(Role.MODERATOR.value, Role.PHARMACIST.value,))
 
     class Meta:
         model = models.User

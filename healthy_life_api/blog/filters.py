@@ -4,9 +4,9 @@ from blog import models
 
 
 class BasePostFilter(filters.FilterSet):
-    title = filters.CharFilter(lookup_expr='icontains', label='Заголовок')
-    date_create = filters.DateFromToRangeFilter(label='Время написания')
-    date_change = filters.DateFromToRangeFilter(label='Время изменения')
+    title = filters.CharFilter(lookup_expr='icontains', label='title')
+    date_create = filters.DateFromToRangeFilter(label='time of writing')
+    date_change = filters.DateFromToRangeFilter(label='time of change')
 
     class Meta:
         model = models.Post
@@ -14,7 +14,7 @@ class BasePostFilter(filters.FilterSet):
 
 
 class AnyPostFilter(BasePostFilter):
-    wrote = filters.ModelChoiceFilter(queryset=user_model.User.objects.all(), label='Автор')
+    wrote = filters.ModelChoiceFilter(queryset=user_model.User.objects.all(), label='author')
 
     class Meta(BasePostFilter.Meta):
         fields = BasePostFilter.Meta.fields + ('wrote',)

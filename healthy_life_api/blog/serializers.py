@@ -6,8 +6,8 @@ class PostListSerializer(serializers.ModelSerializer):
     short_text = serializers.SerializerMethodField()
     status = serializers.ChoiceField(
         choices=(
-            models.StatusRecord.DRAFT, 'Черновик',
-            models.StatusRecord.PUBLISHED, 'Опубликовано',
+            models.StatusRecord.DRAFT,
+            models.StatusRecord.PUBLISHED,
         )
     )
 
@@ -29,8 +29,8 @@ class PostListSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(
         choices=(
-            models.StatusRecord.DRAFT, 'Черновик',
-            models.StatusRecord.PUBLISHED, 'Опубликовано',
+            models.StatusRecord.DRAFT,
+            models.StatusRecord.PUBLISHED,
         ),
         default=models.StatusRecord.DRAFT
     )

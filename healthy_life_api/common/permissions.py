@@ -1,4 +1,5 @@
 from rest_framework import permissions
+from common.utils import Role
 
 
 class IsModeratorOrSuperUser(permissions.IsAdminUser):
@@ -6,7 +7,7 @@ class IsModeratorOrSuperUser(permissions.IsAdminUser):
         if super().has_permission(request, view):
             return True
 
-        return request.user.is_authenticated and request.user.groups.filter(name='Модератор').exists()
+        return request.user.is_authenticated and request.user.groups.filter(name=Role.MODERATOR.value).exists()
 
 
 class IsPharmacistOrSuperUser(permissions.IsAdminUser):
@@ -14,7 +15,7 @@ class IsPharmacistOrSuperUser(permissions.IsAdminUser):
         if super().has_permission(request, view):
             return True
 
-        return request.user.is_authenticated and request.user.groups.filter(name='Фармацевт').exists()
+        return request.user.is_authenticated and request.user.groups.filter(name=Role.PHARMACIST.value).exists()
 
 
 class IsAdminUserOrReadOnly(permissions.IsAdminUser):

@@ -12,4 +12,4 @@ def notify_subscribers(sender, instance, created, **kwargs):
 
         for subscriber in subscribers:
             Notifications.objects.create(user_notify=subscriber.subscriber,
-                                         message=f'Новый блог с подписанного канала {instance}')
+                                         message=f'new post {instance} from a blogger you follow')
