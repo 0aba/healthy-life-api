@@ -28,4 +28,4 @@ class IMessage(models.Model):
     displayed = DisplayedManager()
 
     def __str__(self):
-        return f'@{self.pk}'
+        return f'@\'{self.pk}\''

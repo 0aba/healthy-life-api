@@ -22,10 +22,10 @@ from rest_framework_simplejwt.views import (
 from django.urls import path, re_path, include
 from django.conf.urls.static import static
 from healthy_life_api import settings
-from django.contrib import admin
+# from django.contrib import admin
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # path('admin/', admin.site.urls),
     path('api/v1/user/', include('user.urls_v1')),
     path('api/v1/blog/', include('blog.urls_v1')),
     path('api/v1/pharmacy/', include('pharmacy.urls_v1')),

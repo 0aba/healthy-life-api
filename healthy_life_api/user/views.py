@@ -5,12 +5,33 @@ from rest_framework import generics, viewsets, status
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
 from django.db import models as dj_models
+from django.db import IntegrityError
 from user import serializers, models
 from common.utils import Role
 import requests
 import decimal
 import jwt
 import os
+
+
+class UserAPIView(generics.RetrieveAPIView):
+    queryset = models.User.objects.all()
+    serializer_class = serializers.UserSerializer
+    lookup_field = 'pk'
+
+    http_method_names = ('get',)
+
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get('pk', None)
+
+        try:
+            user = models.User.objects.get(pk=pk)
+        except ObjectDoesNotExist:
+            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serialize = self.get_serializer(user)
+
+        return Response(serialize.data, status=status.HTTP_200_OK)
 
 
 class ProfileAPIView(generics.RetrieveUpdateAPIView):
@@ -63,13 +84,14 @@ class SettingsAPIView(generics.RetrieveUpdateAPIView):
 
     def get(self, request, *args, **kwargs):
         username = kwargs.get('username', None)
+        me = request.user
 
         try:
             user = models.User.objects.select_related('settings_fk').get(username=username)
         except ObjectDoesNotExist:
             return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user != user and not request.user.is_superuser:
+        if me != user and not me.is_superuser:
             return Response({'detail': 'you can\'t see other people\'s settings'}, status=status.HTTP_403_FORBIDDEN)
 
         serialize = self.get_serializer(user)
@@ -218,11 +240,11 @@ class FriendAPIView(generics.ListAPIView,
         if models.BlackList.objects.filter(user_black_list=new_friend, in_black_list=me).exists():
             return Response({'detail': f'you are blacklisted {new_friend}'}, status=status.HTTP_403_FORBIDDEN)
 
-        if models.Friend.objects.filter(friends_user=me, user_friend=new_friend).exists():
-            return Response({'detail': f'you are blacklisted {new_friend}'},
+        try:
+            models.Friend.objects.create(friends_user=me, user_friend=new_friend).save()
+        except IntegrityError:
+            return Response({'detail': f'you have already added {new_friend} as a friend'},
                             status=status.HTTP_400_BAD_REQUEST)
-
-        models.Friend.objects.create(friends_user=me, user_friend=new_friend).save()
 
         return Response({'message': f'you have sent a friend request to user {new_friend}'},
                         status=status.HTTP_201_CREATED)
@@ -288,11 +310,11 @@ class BlackListAPIView(generics.ListAPIView,
         if me == new_user_bl:
             return Response({'detail': 'you can\'t add yourself to your blacklist'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if models.BlackList.objects.filter(user_black_list=me, in_black_list=new_user_bl).exists():
+        try:
+            models.BlackList.objects.create(user_black_list=me, in_black_list=new_user_bl).save()
+        except IntegrityError:
             return Response({'detail': f'you have already added {new_user_bl} to the blacklist'},
                             status=status.HTTP_400_BAD_REQUEST)
-
-        models.BlackList.objects.create(user_black_list=me, in_black_list=new_user_bl).save()
 
         return Response({'message': f'you have successfully added {new_user_bl} to the blacklist'},
                         status=status.HTTP_201_CREATED)
@@ -477,7 +499,7 @@ class AwardUserViewSet(viewsets.ModelViewSet):
         try:
             models.AwardsUser.objects.get(award_user=user, pk=pk).delete()
         except ObjectDoesNotExist:
-            return Response({'detail': f'user {user} does not have this award'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': f'{user} does not have this award'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({'message': f'the award was successfully removed from {user}'},
                         status=status.HTTP_204_NO_CONTENT)
@@ -504,7 +526,7 @@ class BanCommunicationViewSet(viewsets.ModelViewSet):
         try:
             ban = models.BanCommunication.objects.get(pk=pk)
         except ObjectDoesNotExist:
-            return Response({'detail': 'ban no found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'ban not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(ban)
 
@@ -538,7 +560,7 @@ class BanCommunicationViewSet(viewsets.ModelViewSet):
 
             serializer.save()
 
-            return Response({'message': f'user {user} has been banned'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'{user} has been banned'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -712,7 +734,7 @@ class PrivateMessageViewSet(viewsets.ModelViewSet):
         message.status = common_models.StatusMessage.DELETED
         message.save()
 
-        return Response({'message': f'message {message} was successfully deleted'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': f'{message} was successfully deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -782,7 +804,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         str_notify = f'{notification}'
         notification.delete()
 
-        return Response({'detail': f'notification {str_notify} successfully removed'},
+        return Response({'message': f'notification {str_notify} successfully removed'},
                         status=status.HTTP_204_NO_CONTENT)
 
 
@@ -798,13 +820,15 @@ class CryptoCloudViewAPI(viewsets.ViewSet):
         me = request.user
 
         if not me.is_authenticated:
-            return Response({'detail': 'login to top up your balance'})
+            return Response({'detail': 'login to top up your balance'}, status=status.HTTP_400_BAD_REQUEST)
 
         if replenishment_amount is None:
-            return Response({'replenishment_amount_usdt': ['replenishment amount is missing']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'replenishment_amount_usdt': ['replenishment amount is missing']},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if replenishment_amount <= 0:
-            return Response({'replenishment_amount_usdt': ['replenishment amount is negative or zero']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'replenishment_amount_usdt': ['replenishment amount is negative or zero']},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if not (models.User.MINIMUM_REPLENISHMENT_AT_ONE_TIME <=
                 replenishment_amount

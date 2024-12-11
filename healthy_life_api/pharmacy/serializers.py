@@ -99,6 +99,12 @@ class PromotionSerializer(serializers.ModelSerializer):
         fields = ('pk', 'promotion_goods', 'time_end_promotion', 'promotion_percentage',)
         read_only_fields = ('pk',)
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['promotion_goods'] = instance.promotion_goods.name
+
+        return representation
+
     def update(self, instance, validated_data):
         validated_data.pop('promotion_goods', None)
 
@@ -118,6 +124,12 @@ class GoodsReviewSerializer(serializers.ModelSerializer):
         model = models.GoodsReview
         fields = ('pk', 'goods_review', 'grade', 'wrote', 'message', 'date_create', 'date_change',)
         read_only_fields = ('pk', 'goods_review', 'wrote', 'date_create', 'date_change',)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['goods_review'] = instance.goods_review.name
+
+        return representation
 
     def create(self, validated_data):
         request = self.context.get('request')

@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
+from django.contrib.auth.hashers import make_password
 from django.core.management import call_command
 from healthy_life_api import settings
 from user.models import User
@@ -25,16 +26,20 @@ class Command(BaseCommand):
 
     @staticmethod
     def _create_test_data():
-        amount_test_user = 3
-        usernames = ('user1', 'user2', 'user3',)
-        start_balances = (decimal.Decimal('0.00'), decimal.Decimal('100.00'), decimal.Decimal('1000.00'))
+        amount_test_user = 15
+        common_part_of_usernames = 'user'
         common_part_of_password = 'qwnmfwkn2en2irnr2kd'
-        for i in range(amount_test_user):
-            User.objects.create_user(username=usernames[i],
-                                     password=f'{common_part_of_password}_{usernames[i]}',
-                                     email=f'{usernames[i]}@mail.com',
-                                     balance=start_balances[i])
 
-        User.objects.create_superuser(username='root',
-                                      password=f'{common_part_of_password}_root',
-                                      email='root@mail.com')
+        users = [User(username=f'{common_part_of_usernames}_{i}',
+                 password=make_password(f'{common_part_of_password}_{common_part_of_usernames}_{i}'),
+                 email=f'{common_part_of_usernames}_{i}@mail.com',
+                 balance=decimal.Decimal("99.99")) for i in range(1, amount_test_user + 1)]
+
+        users.append(User(username='root',
+                          password=make_password(f'{common_part_of_password}_root'),
+                          email='root@mail.com',
+                          is_superuser=True,
+                          is_staff=True))
+
+        for user in users:
+            user.save()

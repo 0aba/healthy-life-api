@@ -2,8 +2,6 @@ from django.urls import path
 from pharmacy import views
 
 
-
-
 urlpatterns = [
     path('goods/', views.GoodsListAPIView.as_view(), name='goods_list'),
     path('goods/new/', views.GoodsViewSet.as_view({'post': 'create'}), name='goods_new'),

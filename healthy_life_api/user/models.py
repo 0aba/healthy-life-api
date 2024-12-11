@@ -53,7 +53,7 @@ class PrivateMessage(IMessage):
         verbose_name = 'private message'
         verbose_name_plural = 'private messages'
 
-    received = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.PROTECT, elated_name='received_PM_fk',
+    received = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='received_PM_fk',
                                  verbose_name='who received')
     it_read = models.BooleanField(default=False, verbose_name='read')
 
@@ -139,7 +139,7 @@ class BanCommunication(models.Model):
 
             super().get_queryset().filter(
                 active=True,
-                ban_time__isnull=False,
+                ban_time__isnull=False,  # info! бесполезная строка т.к. операция __lt с null это False  
                 banned_date__lt=now - models.F('ban_time')
             ).update(active=False)
 

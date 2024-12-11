@@ -1,19 +1,26 @@
 from django.core.exceptions import ValidationError
 from typing import Union
 from PIL import Image
+import os
 
 
 def validate_image(image, size_file_MB: float, max_len_name: int, max_x: int, max_y: int):
+    valid_extensions = {'.jpg', '.jpeg', '.png'}
+    file_extension = os.path.splitext(image.name)[1].lower()
+
+    if file_extension not in valid_extensions:
+        raise ValidationError(f'file must be a jpg, jpeg, or png')
+
     size_to_bits = size_file_MB * 1024 * 1024
     if image.size > size_to_bits:
-        raise ValidationError(f'ошибка: размер изображения не должен привышать {size_file_MB} МБ')
+        raise ValidationError(f'image size should not exceed {size_file_MB} MB')
 
     if len(image.name) > max_len_name:
-        raise ValidationError(f'ошибка: имя файла не должно превышать {max_len_name} символа')
+        raise ValidationError(f'file name must not exceed {max_len_name} characters')
 
     image_file = Image.open(image)
     if image_file.size[0] > max_x or image_file.size[1] > max_y:
-        raise ValidationError(f'ошибка: максимальный размер изображения {max_x}x{max_y} пискселей')
+        raise ValidationError(f'maximum image size {max_x}x{max_y} pixels')
 
     return image
 

@@ -79,7 +79,7 @@ class BloggerViewSet(viewsets.ModelViewSet):
         except ObjectDoesNotExist:
             return Response({'detail': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if me != post.wrote:
+        if me != post.wrote and post.status == models.StatusRecord.DRAFT:
             return Response({'detail': 'you can\'t view someone else\'s post that is in draft'},
                             status=status.HTTP_403_FORBIDDEN)
 
@@ -219,7 +219,7 @@ class GoodsPostViewSet(viewsets.ModelViewSet):
         except ObjectDoesNotExist:
             return Response({'detail': 'goods in post not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({'message': f'products {delete_goods} successfully removed to post'},
+        return Response({'message': f'goods {delete_goods} successfully removed to post'},
                         status=status.HTTP_204_NO_CONTENT)
 
 
@@ -238,7 +238,7 @@ class PostCommentViewSet(viewsets.ModelViewSet):
         except ObjectDoesNotExist:
             return Response({'detail': 'post not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if post.status == models.StatusRecord.DRAFT and me != post.wrote:
+        if me != post.wrote and post.status == models.StatusRecord.DRAFT:
             return Response({'detail': 'you can\'t see comments of someone else\'s post in draft'},
                             status=status.HTTP_403_FORBIDDEN)
 

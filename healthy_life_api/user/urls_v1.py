@@ -3,6 +3,7 @@ from user import views
 
 
 urlpatterns = [
+    path('by/<int:pk>/', views.UserAPIView.as_view(), name='user_by_pk'),
     path('profile/<slug:username>/', views.ProfileAPIView.as_view(), name='profile'),
     path('settings/<slug:username>/', views.SettingsAPIView.as_view(), name='settings'),
     path('group/<slug:username>/', views.GroupAPIView.as_view(), name='group'),

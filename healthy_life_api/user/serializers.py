@@ -7,6 +7,13 @@ from common import validators
 from user import models
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.User
+        fields = ('username',)
+        read_only_fields = ('username',)
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     avatar = serializers.ImageField(validators=[lambda image: validators.validate_image(image,
                                                                                         1, 64,
@@ -156,7 +163,7 @@ class ChatSerializer(serializers.Serializer):
 
         other_user = models.User.objects.get(pk=id_user_with_chat)
 
-        last_message = models.PrivateMessage.objects.filter(
+        last_message = models.PrivateMessage.displayed.filter(
             (dj_models.Q(wrote=me) & dj_models.Q(received=other_user)) |
             (dj_models.Q(wrote=other_user) & dj_models.Q(received=me))
         ).order_by('-date_create').first()

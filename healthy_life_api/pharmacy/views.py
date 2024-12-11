@@ -85,7 +85,7 @@ class GoodsViewSet(viewsets.ModelViewSet):
 
             updated_goods = serializer.save()
 
-            return Response({'message': f'goods {updated_goods} successfully edit '}, status=status.HTTP_200_OK)
+            return Response({'message': f'goods {updated_goods} successfully edit'}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -136,6 +136,12 @@ class PromotionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
+        try:
+            pk_goods = models.Goods.objects.get(name=request.data.get('promotion_goods', None))
+            request.data['promotion_goods'] = pk_goods.pk
+        except ObjectDoesNotExist:
+            request.data['promotion_goods'] = None
+
         serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():
@@ -147,7 +153,8 @@ class PromotionViewSet(viewsets.ModelViewSet):
 
             new_promotion = serializer.save()
 
-            return Response({'message': f'promotion {new_promotion} successfully created'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'promotion {new_promotion} successfully created'},
+                            status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -157,7 +164,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
         try:
             promotion = self.get_queryset().get(pk=pk_promotion)
         except ObjectDoesNotExist:
-            return Response({'detail': 'promotion not found '}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'promotion not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = self.get_serializer(promotion, data=request.data, partial=True)
 
@@ -257,7 +264,7 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'review not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if review.wrote != me:
-            return Response({'detail': 'you can\'t change someone else\'s review'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'you can\'t change someone else\'s review'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(review, data=request.data, partial=True)
 
@@ -277,7 +284,7 @@ class GoodsReviewViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'review not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if review.wrote != me:
-            return Response({'detail': 'you can\'t delete someone else\'s review'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'you can\'t delete someone else\'s review'}, status=status.HTTP_403_FORBIDDEN)
 
         str_review = f'{review}'
         review.delete()
@@ -341,7 +348,7 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
         card_user.card_status = models.StatusCart.BLOCKED
         card_user.save()
 
-        return Response({'message': f'successfully unblocked card {card_user}'}, status=status.HTTP_200_OK)
+        return Response({'message': f'successfully blocked card {card_user}'}, status=status.HTTP_200_OK)
 
     def patch_unban_card(self, request, *args, **kwargs):
         username_owner_card = kwargs.get('username', None)
@@ -355,7 +362,7 @@ class LoyaltyCardViewSet(viewsets.ModelViewSet):
         card_user.card_status = models.StatusCart.ACTIVE
         card_user.save()
 
-        return Response({'message': f'successfully blocked card {card_user}'}, status=status.HTTP_200_OK)
+        return Response({'message': f'successfully unblocked card {card_user}'}, status=status.HTTP_200_OK)
 
 
 class PurchaseViewSet(viewsets.ModelViewSet):
@@ -363,7 +370,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.PurchaseSerializer
     permission_classes = (IsAuthenticated,)
 
-    http_method_names = ('get', 'post', 'put', 'patch', 'delete',)
+    http_method_names = ('get', 'post', 'delete',)
 
     def list(self, request, *args, **kwargs):
         purchase_user_username = kwargs.get('username', None)
@@ -396,7 +403,8 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             new_purchase = serializer.save()
 
-            return Response({'message': f'purchase successfully created {new_purchase}'}, status=status.HTTP_201_CREATED)
+            return Response({'message': f'purchase successfully created {new_purchase}'},
+                            status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -414,7 +422,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
         if purchase.is_paid:
-            return Response({'detail': 'You cannot delete completed purchases'},
+            return Response({'detail': 'you cannot delete completed purchases'},
                             status=status.HTTP_400_BAD_REQUEST)
 
         str_purchase = f'{purchase}'
@@ -461,8 +469,13 @@ class PurchaseViewSet(viewsets.ModelViewSet):
 
         paid_with_bonuses = request.data.get('paid_with_bonuses', 0)
 
+        if not isinstance(paid_with_bonuses, (float, int,)):
+            return Response({'paid_with_bonuses': ['paid_with_bonuses must be a number']},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         if models.LoyaltyCard.objects.get(user_card=me).bonuses < paid_with_bonuses:
-            return Response({'detail': 'you don\'t have that many bonuses on your loyalty card'})
+            return Response({'detail': 'you don\'t have that many bonuses on your loyalty card'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if paid_with_bonuses < 0:
             return Response({'paid_with_bonuses': ['paid_with_bonuses is negative number']},
@@ -485,7 +498,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
 
         if len(not_available):
             return Response({'detail': f'the following items are not available in such quantities in the purchase: '
-                                       f'{list(not_available)}'})
+                                       f'{list(not_available)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
             purchase_goods = models.PurchaseGoods.objects.filter(purchase=purchase).prefetch_related('goods_purchase')
@@ -521,10 +534,12 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if not me.groups.filter(name=Role.PHARMACIST.value).exists() and not me.is_superuser:
-            return Response({'detail': 'only pharmacy staff can mark the purchase as delivered'},)
+            return Response({'detail': 'only pharmacy staff can mark the purchase as delivered'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         if not purchase.is_paid:
-            return Response({'detail': 'cannot mark an unpaid purchase as delivered'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'cannot mark an unpaid purchase as delivered'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if purchase.goods_is_received:
             return Response({'detail': 'the goods have already been delivered'}, status=status.HTTP_400_BAD_REQUEST)
@@ -532,7 +547,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         purchase.goods_is_received = True
         purchase.save()
 
-        return Response({'message': f'purchase successfully delivered {purchase}'},)
+        return Response({'message': f'purchase successfully delivered {purchase}'}, status=status.HTTP_201_CREATED)
 
 
 class PurchaseGoodsViewSet(viewsets.ModelViewSet):
@@ -577,10 +592,10 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
             amount_in_stock = serializer.validated_data.get('amount')
 
             if purchase.is_paid:
-                return Response({'detail': 'a paid purchase can\'t be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'paid purchase cannot be changed'}, status=status.HTTP_400_BAD_REQUEST)
 
             if purchase.user_buy != me:
-                return Response({'detail': 'You can\'t change the quantity of an item in someone else\'s purchase'},
+                return Response({'detail': 'you cannot change items in someone else\'s purchase'},
                                 status=status.HTTP_403_FORBIDDEN)
 
             if goods.amount_in_stock < amount_in_stock:
@@ -616,7 +631,7 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
 
         if purchase.user_buy != me:
-            return Response({'detail': 'You cannot change the quantity of an item in someone else\'s purchase.'},
+            return Response({'detail': 'you cannot change the quantity of an item in someone else\'s purchase.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         new_amount = request.data.get('amount')
@@ -650,7 +665,7 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'a paid purchase cannot be supplemented'}, status=status.HTTP_400_BAD_REQUEST)
 
         if purchase.user_buy != me:
-            return Response({'detail': 'You cannot change the quantity of an item in someone else\'s purchase'},
+            return Response({'detail': 'you cannot change the quantity of an item in someone else\'s purchase'},
                             status=status.HTTP_403_FORBIDDEN)
 
         try:
@@ -658,4 +673,4 @@ class PurchaseGoodsViewSet(viewsets.ModelViewSet):
         except ObjectDoesNotExist:
             return Response({'detail': 'goods in purchase not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({'message': f'successfully delete goods in {purchase}'}, status=status.HTTP_200_OK)
+        return Response({'message': f'successfully delete goods in {purchase}'}, status=status.HTTP_204_NO_CONTENT)

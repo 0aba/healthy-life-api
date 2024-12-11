@@ -68,7 +68,7 @@ class Promotion(models.Model):
     objects = models.Manager()
 
     def __str__(self):
-        return f'\'{self.pk}\''
+        return f'@\'{self.pk}\''
 
 
 # info! отзыв может существать только один на человека, но его можно изменить и удалить
@@ -138,7 +138,7 @@ class Purchase(models.Model):
     date_buy = models.DateField(null=True, verbose_name='timestamp of buy')
     total_price = models.DecimalField(null=True, max_digits=8, decimal_places=2,
                                       verbose_name='total price')
-    # info! не более половины покупки можно оплатить бонусами
+    # info! не более половины покупки можно оплатить 1бонусами
     paid_with_bonuses = models.PositiveSmallIntegerField(null=True, default=0, verbose_name='paid with bonuses')
     is_paid = models.BooleanField(default=False, verbose_name='paid')
     goods_is_received = models.BooleanField(default=False, verbose_name='goods received')

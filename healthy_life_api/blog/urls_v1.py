@@ -14,8 +14,8 @@ urlpatterns = [
 
     path('post/<slug:title>/goods/', views.GoodsPostViewSet.as_view({'get': 'list'}), name='post_list'),
     path('post/<slug:title>/goods/<str:goods>/', views.GoodsPostViewSet.as_view({'delete': 'destroy',
-                                                                                  'post': 'create'}
-                                                                                 ), name='post_action'),
+                                                                                 'post': 'create'}
+                                                                                ), name='post_action'),
 
     path('post/<slug:title>/comments/', views.PostCommentViewSet.as_view({'get': 'list',
                                                                           'post': 'create'}), name='comment_post'),
